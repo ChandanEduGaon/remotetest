@@ -1,111 +1,91 @@
 * { box-sizing: border-box; }
+html, body { height: 100%; }
 body {
   margin: 0;
-  font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
   background: #f5f6fa;
   color: #1a1d24;
 }
 
-.nav {
-  padding: 16px 24px;
-  padding-top: max(16px, env(safe-area-inset-top, 0px));
-  padding-left: max(24px, env(safe-area-inset-left, 0px));
-  padding-right: max(24px, env(safe-area-inset-right, 0px));
-  border-bottom: 1px solid #e5e7eb;
-  background: white;
-}
-.brand { font-weight: 700; font-size: 18px; word-break: break-word; }
+.page { min-height: 100vh; display: flex; flex-direction: column; }
 
-.hero {
-  max-width: 720px;
-  margin: 80px auto;
-  padding: 0 24px;
-  text-align: center;
-}
-.hero h1 { font-size: 32px; margin-bottom: 12px; word-break: break-word; }
-.hero p { color: #6b7280; font-size: 16px; }
+/* ---------- Split layout: image + form ---------- */
 
-.popup-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 17, 21, 0.55);
+.split {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 0;
+}
+
+.split-image {
+  background-color: #e5e7eb;
+  background-size: cover;
+  background-position: center;
+}
+
+.split-form {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
-  z-index: 1000;
+  padding: 12px;
 }
-.popup-overlay[hidden] { display: none; }
 
-.popup-card {
-  background: white;
-  border-radius: 12px;
+.form-card {
   width: 100%;
-  max-width: 420px;
-  padding: 24px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-  animation: pop-in .18s ease-out;
+  max-width: 380px;
 }
-@keyframes pop-in {
-  from { transform: scale(.96); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
+.form-card h2 { margin: 0 0 10px; font-size: 18px; }
 
-.popup-header h2 { margin: 0 0 16px; font-size: 20px; }
-
-.field-group { margin-bottom: 14px; }
+.field-group { margin-bottom: 8px; }
 .field-group label {
   display: block;
   font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: #374151;
+  font-weight: bold;
+  margin-bottom: 2px;
+  color: #1a1d24;
 }
 .field-group input, .field-group textarea {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 4px 6px;
+  border: 1px solid #999;
+  border-radius: 0;
+  font-size: 13px;
   font-family: inherit;
+  background: white;
 }
-.field-group textarea { min-height: 80px; resize: vertical; }
+.field-group textarea { min-height: 60px; resize: vertical; }
 .field-group input:focus, .field-group textarea:focus {
-  outline: none;
-  border-color: #4f7cff;
-  box-shadow: 0 0 0 3px rgba(79,124,255,0.15);
+  outline: 1px solid #333;
+  border-color: #333;
 }
 
 .popup-submit {
-  width: 100%;
-  padding: 11px;
-  background: #4f7cff;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 5px 16px;
+  background: #d9d9d9;
+  color: #1a1d24;
+  border: 2px outset #ccc;
+  border-radius: 0;
+  font-size: 13px;
   cursor: pointer;
   margin-top: 4px;
 }
-.popup-submit:hover { background: #3d68f0; }
+.popup-submit:hover { background: #ccc; }
+.popup-submit:active { border-style: inset; }
 
 .popup-thanks {
   text-align: center;
-  padding: 12px 0;
+  padding: 8px 0;
   color: #16a34a;
-  font-weight: 600;
+  font-weight: bold;
 }
 
 /* ---------- Responsive ---------- */
 
-@media (max-width: 600px) {
-  .hero { margin: 48px auto; padding: 0 16px; }
-  .hero h1 { font-size: 24px; }
-  .hero p { font-size: 14px; }
-  .nav { padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top, 0px)); }
-  .popup-card { padding: 18px; border-radius: 10px; max-height: 90vh; max-height: 90dvh; overflow-y: auto; }
+@media (max-width: 720px) {
+  .split { grid-template-columns: 1fr; }
+  .split-image { min-height: 220px; }
+  .split-form { padding: 12px; }
   /* 16px prevents iOS Safari from auto-zooming the page on input focus */
   .field-group input, .field-group textarea { font-size: 16px; }
 }

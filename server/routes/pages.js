@@ -32,6 +32,24 @@ router.get('/pages', async (req, res) => {
   }
 });
 
+// Delete a page (sessions, forms and field values cascade via foreign keys)
+router.delete('/pages/:pageId', async (req, res) => {
+  try {
+    const [[page]] = await pool.query('SELECT id FROM pages WHERE id = ?', [req.params.pageId]);
+    if (!page) return res.status(404).json({ error: 'Page not found' });
+
+    await pool.query('DELETE FROM pages WHERE id = ?', [req.params.pageId]);
+
+    const io = req.app.get('io');
+    if (io) io.to('admins').emit('page:deleted', { pageId: req.params.pageId });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed to delete page', err);
+    res.status(500).json({ error: 'Failed to delete page' });
+  }
+});
+
 // List sessions for a page (with any open/latest form info)
 router.get('/pages/:pageId/sessions', async (req, res) => {
   try {

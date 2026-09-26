@@ -81,6 +81,11 @@ function renderPages() {
       <div class="title">${escapeHtml(page.title)}</div>
       <span class="url">${escapeHtml(page.url)}</span>
       <button class="copy-btn" type="button">Copy link</button>
+      <button class="delete-btn" type="button" aria-label="Delete page" title="Delete page">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 5v6m4-6v6"/>
+        </svg>
+      </button>
     `;
     li.querySelector('.title').onclick = () => {
       state.selectedPageId = page.id;
@@ -90,10 +95,87 @@ function renderPages() {
     };
     li.querySelector('.copy-btn').onclick = (e) => {
       e.stopPropagation();
-      navigator.clipboard.writeText(page.url).catch(() => {});
+      const btn = e.currentTarget;
+      navigator.clipboard.writeText(page.url).then(() => {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        clearTimeout(btn._copyTimer);
+        btn._copyTimer = setTimeout(() => {
+          btn.textContent = 'Copy link';
+          btn.classList.remove('copied');
+        }, 1500);
+      }).catch(() => {
+        btn.textContent = 'Copy failed';
+        clearTimeout(btn._copyTimer);
+        btn._copyTimer = setTimeout(() => { btn.textContent = 'Copy link'; }, 1500);
+      });
+    };
+    li.querySelector('.delete-btn').onclick = (e) => {
+      e.stopPropagation();
+      showDeleteConfirm(li, page);
     };
     el.pagesList.appendChild(li);
   }
+}
+
+// Small inline confirm popover anchored to a page item
+function closeDeleteConfirm() {
+  const existing = document.querySelector('.confirm-pop');
+  if (existing) existing.remove();
+}
+
+function showDeleteConfirm(li, page) {
+  closeDeleteConfirm();
+  const pop = document.createElement('div');
+  pop.className = 'confirm-pop';
+  pop.innerHTML = `
+    <div class="confirm-text">Delete <strong>${escapeHtml(page.title)}</strong>?</div>
+    <div class="confirm-sub">All its sessions and form data will be removed.</div>
+    <div class="confirm-actions">
+      <button type="button" class="cancel">Cancel</button>
+      <button type="button" class="confirm">Delete</button>
+    </div>
+  `;
+  pop.onclick = (e) => e.stopPropagation();
+  pop.querySelector('.cancel').onclick = closeDeleteConfirm;
+  pop.querySelector('.confirm').onclick = async (e) => {
+    e.target.disabled = true;
+    e.target.textContent = 'Deleting…';
+    try {
+      await api(`/api/pages/${encodeURIComponent(page.id)}`, { method: 'DELETE' });
+      removePageLocally(page.id);
+    } catch (err) {
+      e.target.disabled = false;
+      e.target.textContent = 'Delete';
+      pop.querySelector('.confirm-sub').textContent = 'Failed to delete. Try again.';
+    }
+  };
+  li.appendChild(pop);
+  pop.querySelector('.cancel').focus();
+}
+
+document.addEventListener('click', closeDeleteConfirm);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeDeleteConfirm();
+});
+
+function removePageLocally(pageId) {
+  const removedSessionIds = new Set(
+    state.sessions.filter((s) => s.page_id === pageId).map((s) => s.id)
+  );
+  state.pages = state.pages.filter((p) => p.id !== pageId);
+  state.sessions = state.sessions.filter((s) => s.page_id !== pageId);
+  for (const id of removedSessionIds) state.liveForms.delete(id);
+
+  if (state.selectedPageId === pageId) state.selectedPageId = null;
+  if (removedSessionIds.has(state.selectedSessionId)) {
+    state.selectedSessionId = null;
+    if (state.mobileView !== 'pages') setMobileView('pages');
+  }
+
+  renderPages();
+  renderSessions();
+  renderDetail();
 }
 
 function renderSessions() {
@@ -263,6 +345,21 @@ socket.on('disconnect', () => {
 socket.on('session:new', ({ session }) => {
   state.sessions.unshift(session);
   renderSessions();
+});
+
+socket.on('page:deleted', ({ pageId }) => {
+  if (state.pages.some((p) => p.id === pageId)) removePageLocally(pageId);
+});
+
+socket.on('session:online', ({ sessionId, session }) => {
+  const existing = state.sessions.find((s) => s.id === sessionId);
+  if (existing) {
+    existing.status = 'active';
+  } else if (session) {
+    state.sessions.unshift(session);
+  }
+  renderSessions();
+  if (state.selectedSessionId === sessionId) renderDetail();
 });
 
 socket.on('session:offline', ({ sessionId }) => {

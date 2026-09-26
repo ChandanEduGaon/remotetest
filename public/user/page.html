@@ -8,24 +8,17 @@
 </head>
 <body>
   <main class="page">
-    <nav class="nav">
-      <div class="brand">__PAGE_TITLE__</div>
-    </nav>
+    <section class="split">
+      <div class="split-image" style="background-image: url('/user-assets/assets/images.jpg');"></div>
 
-    <section class="hero">
-      <h1>__PAGE_TITLE__</h1>
-      <p>Thanks for stopping by. Stay on this page — we may reach out shortly.</p>
+      <div class="split-form">
+        <div class="form-card">
+          <h2 id="popupTitle">Enquiry Form</h2>
+          <form id="popupForm"></form>
+        </div>
+      </div>
     </section>
   </main>
-
-  <div id="popupOverlay" class="popup-overlay" hidden>
-    <div class="popup-card">
-      <div class="popup-header">
-        <h2 id="popupTitle">Form</h2>
-      </div>
-      <form id="popupForm"></form>
-    </div>
-  </div>
 
   <script>
     window.PAGE_ID = "__PAGE_ID__";

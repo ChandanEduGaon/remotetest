@@ -3,24 +3,28 @@ const socket = io();
 let sessionId = null;
 let currentFormId = null;
 
-const overlay = document.getElementById('popupOverlay');
 const popupTitle = document.getElementById('popupTitle');
 const popupForm = document.getElementById('popupForm');
 
+const SESSION_KEY = `leadSession:${window.PAGE_ID}`;
+
 socket.on('connect', () => {
-  socket.emit('user:register', { pageId: window.PAGE_ID }, (resp) => {
+  let storedId = null;
+  try { storedId = localStorage.getItem(SESSION_KEY); } catch (e) {}
+
+  socket.emit('user:register', { pageId: window.PAGE_ID, sessionId: storedId }, (resp) => {
     if (resp && resp.error) {
       console.error('Registration failed:', resp.error);
       return;
     }
     sessionId = resp.sessionId;
+    try { localStorage.setItem(SESSION_KEY, sessionId); } catch (e) {}
   });
 });
 
 socket.on('form:open', ({ formId, label, fields }) => {
   currentFormId = formId;
   renderForm(label, fields);
-  overlay.hidden = false;
 });
 
 socket.on('form:close', ({ formId }) => {
@@ -86,11 +90,12 @@ function renderForm(label, fields) {
 
 function showThanks() {
   popupForm.innerHTML = '<div class="popup-thanks">Thanks! We received your info.</div>';
-  setTimeout(closePopup, 1500);
+  currentFormId = null;
 }
 
+// The form is embedded on the page (not a modal), so "closing" it just
+// clears it back to an empty state until the next form:open arrives.
 function closePopup() {
-  overlay.hidden = true;
   currentFormId = null;
   popupForm.innerHTML = '';
 }
