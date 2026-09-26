@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>__PAGE_TITLE__</title>
+  <link rel="stylesheet" href="/user-assets/user.css" />
+</head>
+<body>
+  <main class="page">
+    <nav class="nav">
+      <div class="brand">__PAGE_TITLE__</div>
+    </nav>
+
+    <section class="hero">
+      <h1>__PAGE_TITLE__</h1>
+      <p>Thanks for stopping by. Stay on this page — we may reach out shortly.</p>
+    </section>
+  </main>
+
+  <div id="popupOverlay" class="popup-overlay" hidden>
+    <div class="popup-card">
+      <div class="popup-header">
+        <h2 id="popupTitle">Form</h2>
+      </div>
+      <form id="popupForm"></form>
+    </div>
+  </div>
+
+  <script>
+    window.PAGE_ID = "__PAGE_ID__";
+  </script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/user-assets/user.js"></script>
+</body>
+</html>

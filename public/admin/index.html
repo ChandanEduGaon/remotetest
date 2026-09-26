@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <button id="mobileBackBtn" class="back-btn" type="button" aria-label="Back">&larr;</button>
+      <h1>Lead Session Admin</h1>
+      <span id="connStatus" class="status-pill offline">connecting…</span>
+    </header>
+
+    <div class="layout" id="layout" data-active="pages">
+      <aside class="pages-panel">
+        <div class="panel-header">
+          <h2>Pages</h2>
+        </div>
+        <form id="createPageForm" class="create-page-form">
+          <input id="newPageTitle" type="text" placeholder="New page title" required />
+          <button type="submit">+ Create</button>
+        </form>
+        <ul id="pagesList" class="pages-list"></ul>
+      </aside>
+
+      <section class="sessions-panel">
+        <div class="panel-header">
+          <h2 id="sessionsHeading">All Sessions</h2>
+        </div>
+        <ul id="sessionsList" class="sessions-list"></ul>
+      </section>
+
+      <section class="detail-panel" id="detailPanel">
+        <div class="empty-state">Select a session to view details</div>
+      </section>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

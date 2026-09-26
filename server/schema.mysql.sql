@@ -1,0 +1,41 @@
+CREATE TABLE IF NOT EXISTS pages (
+  id VARCHAR(36) PRIMARY KEY,
+  title VARCHAR(255) NOT NULL DEFAULT 'Untitled Page',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id VARCHAR(36) PRIMARY KEY,
+  page_id VARCHAR(36) NOT NULL,
+  socket_id VARCHAR(64) NULL,
+  status ENUM('active','inactive') NOT NULL DEFAULT 'active',
+  ip_address VARCHAR(64) NULL,
+  user_agent VARCHAR(512) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (page_id) REFERENCES pages(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS forms (
+  id VARCHAR(36) PRIMARY KEY,
+  session_id VARCHAR(36) NOT NULL,
+  form_type VARCHAR(64) NOT NULL DEFAULT 'lead_form',
+  status ENUM('open','closed','submitted') NOT NULL DEFAULT 'open',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  closed_at DATETIME NULL,
+  FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS form_fields (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  form_id VARCHAR(36) NOT NULL,
+  field_name VARCHAR(128) NOT NULL,
+  field_value TEXT,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_form_field (form_id, field_name),
+  FOREIGN KEY (form_id) REFERENCES forms(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_sessions_page ON sessions(page_id);
+CREATE INDEX idx_forms_session ON forms(session_id);
+CREATE INDEX idx_fields_form ON form_fields(form_id);

@@ -1,0 +1,111 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #f5f6fa;
+  color: #1a1d24;
+}
+
+.nav {
+  padding: 16px 24px;
+  padding-top: max(16px, env(safe-area-inset-top, 0px));
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
+}
+.brand { font-weight: 700; font-size: 18px; word-break: break-word; }
+
+.hero {
+  max-width: 720px;
+  margin: 80px auto;
+  padding: 0 24px;
+  text-align: center;
+}
+.hero h1 { font-size: 32px; margin-bottom: 12px; word-break: break-word; }
+.hero p { color: #6b7280; font-size: 16px; }
+
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 21, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  z-index: 1000;
+}
+.popup-overlay[hidden] { display: none; }
+
+.popup-card {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  animation: pop-in .18s ease-out;
+}
+@keyframes pop-in {
+  from { transform: scale(.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.popup-header h2 { margin: 0 0 16px; font-size: 20px; }
+
+.field-group { margin-bottom: 14px; }
+.field-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #374151;
+}
+.field-group input, .field-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+}
+.field-group textarea { min-height: 80px; resize: vertical; }
+.field-group input:focus, .field-group textarea:focus {
+  outline: none;
+  border-color: #4f7cff;
+  box-shadow: 0 0 0 3px rgba(79,124,255,0.15);
+}
+
+.popup-submit {
+  width: 100%;
+  padding: 11px;
+  background: #4f7cff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.popup-submit:hover { background: #3d68f0; }
+
+.popup-thanks {
+  text-align: center;
+  padding: 12px 0;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 600px) {
+  .hero { margin: 48px auto; padding: 0 16px; }
+  .hero h1 { font-size: 24px; }
+  .hero p { font-size: 14px; }
+  .nav { padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top, 0px)); }
+  .popup-card { padding: 18px; border-radius: 10px; max-height: 90vh; max-height: 90dvh; overflow-y: auto; }
+  /* 16px prevents iOS Safari from auto-zooming the page on input focus */
+  .field-group input, .field-group textarea { font-size: 16px; }
+}
