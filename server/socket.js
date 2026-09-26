@@ -23,26 +23,61 @@ function scheduleFieldWrite(formId, field, value) {
   fieldWriteTimers.set(key, timer);
 }
 
-// Creates a form row for the default template and pushes it to the visitor
-// (and mirrors it to admins), same as a manual admin:openForm would.
+// Creates a form row for the given template and pushes it to the visitor
+// (and mirrors it to admins). Returns the new formId, or null if unknown type.
+// `dynamicText` is an optional one-off message an admin can set per open,
+// shown on the user's page right under the form title.
+async function openForm(io, sessionId, formType, dynamicText) {
+  const template = FORM_TEMPLATES[formType];
+  if (!template) return null;
+
+  const formId = uuidv4();
+  await pool.query(
+    `INSERT INTO forms (id, session_id, form_type, status) VALUES (?, ?, ?, 'open')`,
+    [formId, sessionId, formType]
+  );
+
+  const onloadText = template.onload_text || (template.extra && template.extra.onload_text) || null;
+  const payload = {
+    formId,
+    formType,
+    label: template.label,
+    fields: template.fields,
+    extra: template.extra || {},
+    onloadText,
+    dynamicText: dynamicText || null
+  };
+
+  io.to(sessionRoom(sessionId)).emit('form:open', payload);
+  io.to(ADMIN_ROOM).emit('form:opened', { sessionId, ...payload });
+  return formId;
+}
+
+// Special value for `DEFAULT_FORM_TYPE` or a template's `submit_form`:
+// instead of opening a template, leave the visitor on the full-screen
+// loading screen (e.g. while waiting on something outside the form flow).
+// Nothing else auto-closes it — it stays up until the admin opens a form.
+const LOADING_SENTINEL = 'loading';
+
 async function openDefaultForm(io, sessionId) {
-  const template = FORM_TEMPLATES[DEFAULT_FORM_TYPE];
-  if (!template) return;
-
   try {
-    const formId = uuidv4();
-    await pool.query(
-      `INSERT INTO forms (id, session_id, form_type, status) VALUES (?, ?, ?, 'open')`,
-      [formId, sessionId, DEFAULT_FORM_TYPE]
-    );
-
-    const payload = { formId, formType: DEFAULT_FORM_TYPE, label: template.label, fields: template.fields };
-
-    io.to(sessionRoom(sessionId)).emit('form:open', payload);
-    io.to(ADMIN_ROOM).emit('form:opened', { sessionId, ...payload });
+    if (DEFAULT_FORM_TYPE === LOADING_SENTINEL) {
+      io.to(sessionRoom(sessionId)).emit('form:loading');
+      return;
+    }
+    await openForm(io, sessionId, DEFAULT_FORM_TYPE);
   } catch (err) {
     console.error('Failed to auto-open default form', err);
   }
+}
+
+// Raw `submit_form` value set on a template (top level or inside `extra`),
+// unvalidated — the caller decides what to do with the sentinel vs. an
+// actual template key.
+function submitFormValueFor(formType) {
+  const template = FORM_TEMPLATES[formType];
+  if (!template) return null;
+  return template.submit_form || (template.extra && template.extra.submit_form) || null;
 }
 
 module.exports = function registerSocket(io) {
@@ -156,6 +191,15 @@ module.exports = function registerSocket(io) {
           formId,
           data
         });
+
+        const [[form]] = await pool.query('SELECT form_type FROM forms WHERE id = ?', [formId]);
+        const submitFormValue = form && submitFormValueFor(form.form_type);
+
+        if (submitFormValue === LOADING_SENTINEL) {
+          io.to(sessionRoom(meta.sessionId)).emit('form:loading');
+        } else if (submitFormValue && FORM_TEMPLATES[submitFormValue]) {
+          await openForm(io, meta.sessionId, submitFormValue);
+        }
       } catch (err) {
         console.error('user:formSubmit failed', err);
       }
@@ -179,7 +223,7 @@ module.exports = function registerSocket(io) {
       }
     });
 
-    socket.on('admin:openForm', async ({ sessionId, formType }, ack) => {
+    socket.on('admin:openForm', async ({ sessionId, formType, dynamicText }, ack) => {
       const meta = socketMeta.get(socket.id);
       if (!meta || meta.type !== 'admin') return;
 
@@ -190,16 +234,7 @@ module.exports = function registerSocket(io) {
       }
 
       try {
-        const formId = uuidv4();
-        await pool.query(
-          `INSERT INTO forms (id, session_id, form_type, status) VALUES (?, ?, ?, 'open')`,
-          [formId, sessionId, formType]
-        );
-
-        const payload = { formId, formType, label: template.label, fields: template.fields };
-
-        io.to(sessionRoom(sessionId)).emit('form:open', payload);
-        io.to(ADMIN_ROOM).emit('form:opened', { sessionId, ...payload });
+        const formId = await openForm(io, sessionId, formType, dynamicText);
 
         if (typeof ack === 'function') ack({ ok: true, formId });
       } catch (err) {

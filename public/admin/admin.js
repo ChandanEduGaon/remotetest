@@ -1,12 +1,20 @@
 const socket = io();
 
+const DEFAULT_DYNAMIC_TEXT = "Limited seats left for this batch. Enroll now before registrations close!";
+
 const state = {
   pages: [],
   sessions: [],
   formTemplates: {},
   selectedPageId: null,
   selectedSessionId: null,
-  // sessionId -> { formId, formType, label, fields, status, values }
+  // remembered so the template dropdown survives re-renders (e.g. on close form)
+  selectedFormType: null,
+  // optional per-open message admin can set; shown on the user's page under the title
+  dynamicText: DEFAULT_DYNAMIC_TEXT,
+  // sessionId -> [{ formId, formType, label, fields, status, values }, ...]
+  // A history of every form opened for that session, oldest first, so the
+  // admin sees each submission appended rather than replaced.
   liveForms: new Map(),
   // mobile drill-down view: 'pages' | 'sessions' | 'detail' (ignored on wide screens)
   mobileView: 'pages'
@@ -159,6 +167,23 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeDeleteConfirm();
 });
 
+// ---------- custom form-type dropdown ----------
+// A single delegated listener (rather than one per renderDetail call, which
+// would stack up across re-renders) closes the menu on outside click / Esc.
+function closeFormTypeMenu() {
+  const menu = document.getElementById('formTypeMenu');
+  if (!menu || menu.hidden) return;
+  menu.hidden = true;
+  const trigger = document.getElementById('formTypeTrigger');
+  if (trigger) trigger.classList.remove('open');
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#formTypeSelect')) closeFormTypeMenu();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeFormTypeMenu();
+});
+
 function removePageLocally(pageId) {
   const removedSessionIds = new Set(
     state.sessions.filter((s) => s.page_id === pageId).map((s) => s.id)
@@ -220,12 +245,22 @@ function renderDetail() {
     return;
   }
 
-  const live = state.liveForms.get(session.id);
+  const forms = state.liveForms.get(session.id) || [];
+  const openForm = forms.find((f) => f.status === 'open');
+
+  // Keep the remembered selection valid (e.g. formTemplates just loaded, or
+  // it pointed at a template that no longer exists); default to the first.
+  const formTypeKeys = Object.keys(state.formTemplates);
+  if (!state.selectedFormType || !state.formTemplates[state.selectedFormType]) {
+    state.selectedFormType = formTypeKeys[0] || null;
+  }
+  const selectedTpl = state.selectedFormType ? state.formTemplates[state.selectedFormType] : null;
+
   const formOptions = Object.entries(state.formTemplates)
-    .map(([key, tpl]) => `<option value="${key}">${escapeHtml(tpl.label)}</option>`)
+    .map(([key, tpl]) => `<li class="custom-select-option${key === state.selectedFormType ? ' selected' : ''}" data-value="${key}">${escapeHtml(tpl.label)}</li>`)
     .join('');
 
-  const hasOpenForm = live && live.status === 'open';
+  const hasOpenForm = !!openForm;
 
   el.detailPanel.innerHTML = `
     <div class="detail-header">
@@ -233,24 +268,59 @@ function renderDetail() {
       <div class="sub">Session ${session.id} · ${session.status} · ${escapeHtml(session.user_agent || '')}</div>
     </div>
 
+    <div class="dynamic-text-field">
+      <label for="dynamicTextInput">Message shown under the form title</label>
+      <textarea id="dynamicTextInput" rows="2" placeholder="e.g. Limited seats left — enroll before Friday!">${escapeHtml(state.dynamicText || '')}</textarea>
+    </div>
+
     <div class="form-actions">
-      <select id="formTypeSelect">${formOptions}</select>
+      <div class="custom-select" id="formTypeSelect">
+        <button type="button" class="custom-select-trigger" id="formTypeTrigger">
+          <span>${escapeHtml(selectedTpl ? selectedTpl.label : 'No templates')}</span>
+          <svg class="custom-select-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <ul class="custom-select-menu" id="formTypeMenu" hidden>${formOptions}</ul>
+      </div>
       <button id="openFormBtn" class="primary" ${hasOpenForm ? 'disabled' : ''}>Open Form</button>
-      <button id="closeFormBtn" class="danger" ${hasOpenForm ? '' : 'disabled'}>Close Form</button>
+      <button id="closeFormBtn" class="danger">Close Form</button>
     </div>
 
     <div id="liveFormContainer"></div>
   `;
 
+  const formTypeTrigger = document.getElementById('formTypeTrigger');
+  const formTypeMenu = document.getElementById('formTypeMenu');
+
+  formTypeTrigger.onclick = (e) => {
+    e.stopPropagation();
+    formTypeMenu.hidden = !formTypeMenu.hidden;
+    formTypeTrigger.classList.toggle('open', !formTypeMenu.hidden);
+  };
+
+  formTypeMenu.querySelectorAll('.custom-select-option').forEach((opt) => {
+    opt.onclick = () => {
+      state.selectedFormType = opt.dataset.value;
+      formTypeMenu.querySelectorAll('.custom-select-option').forEach((o) => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      formTypeTrigger.querySelector('span').textContent = opt.textContent;
+      formTypeMenu.hidden = true;
+      formTypeTrigger.classList.remove('open');
+    };
+  });
+
+  document.getElementById('dynamicTextInput').oninput = (e) => {
+    state.dynamicText = e.target.value;
+  };
   document.getElementById('openFormBtn').onclick = () => {
-    const formType = document.getElementById('formTypeSelect').value;
-    socket.emit('admin:openForm', { sessionId: session.id, formType }, (resp) => {
+    const formType = state.selectedFormType;
+    const dynamicText = document.getElementById('dynamicTextInput').value.trim();
+    socket.emit('admin:openForm', { sessionId: session.id, formType, dynamicText }, (resp) => {
       if (resp && resp.error) alert(resp.error);
     });
   };
   document.getElementById('closeFormBtn').onclick = () => {
-    if (!live) return;
-    socket.emit('admin:closeForm', { sessionId: session.id, formId: live.formId });
+    if (!openForm) return;
+    socket.emit('admin:closeForm', { sessionId: session.id, formId: openForm.formId });
   };
 
   renderLiveForm(session.id);
@@ -260,33 +330,41 @@ function renderLiveForm(sessionId) {
   const container = document.getElementById('liveFormContainer');
   if (!container) return;
 
-  const live = state.liveForms.get(sessionId);
-  if (!live) {
+  const forms = state.liveForms.get(sessionId) || [];
+  if (!forms.length) {
     container.innerHTML = '';
     return;
   }
 
-  const fieldsHtml = live.fields
-    .map((f) => {
-      const value = live.values[f.name] || '';
+  // Newest first, so the currently open form (if any) sits on top instead
+  // of at the bottom of the history.
+  container.innerHTML = forms
+    .slice()
+    .reverse()
+    .map((live) => {
+      const fieldsHtml = live.fields
+        .map((f) => {
+          const value = live.values[f.name] || '';
+          return `
+            <p class="field-row">
+              <span class="field-label">${escapeHtml(f.label)}${f.required ? ' *' : ''}:</span>
+              <span class="field-text">${value ? escapeHtml(value) : '<span class="field-empty">—</span>'}</span>
+            </p>
+          `;
+        })
+        .join('');
+
       return `
-        <p class="field-row">
-          <span class="field-label">${escapeHtml(f.label)}${f.required ? ' *' : ''}:</span>
-          <span class="field-text">${value ? escapeHtml(value) : '<span class="field-empty">—</span>'}</span>
-        </p>
+        <div class="live-form">
+          <div class="form-title">
+            <h3>${escapeHtml(live.label)}</h3>
+            <span class="status-tag ${live.status}">${live.status}</span>
+          </div>
+          ${fieldsHtml}
+        </div>
       `;
     })
     .join('');
-
-  container.innerHTML = `
-    <div class="live-form">
-      <div class="form-title">
-        <h3>${escapeHtml(live.label)}</h3>
-        <span class="status-tag ${live.status}">${live.status}</span>
-      </div>
-      ${fieldsHtml}
-    </div>
-  `;
 }
 
 function escapeHtml(str) {
@@ -370,28 +448,33 @@ socket.on('session:offline', ({ sessionId }) => {
 });
 
 socket.on('form:opened', ({ sessionId, formId, formType, label, fields }) => {
-  state.liveForms.set(sessionId, { formId, formType, label, fields, status: 'open', values: {} });
+  const forms = state.liveForms.get(sessionId) || [];
+  forms.push({ formId, formType, label, fields, status: 'open', values: {} });
+  state.liveForms.set(sessionId, forms);
   if (state.selectedSessionId === sessionId) renderDetail();
 });
 
 socket.on('form:inputUpdate', ({ sessionId, formId, field, value }) => {
-  const live = state.liveForms.get(sessionId);
-  if (!live || live.formId !== formId) return;
+  const forms = state.liveForms.get(sessionId);
+  const live = forms && forms.find((f) => f.formId === formId);
+  if (!live) return;
   live.values[field] = value;
   if (state.selectedSessionId === sessionId) renderLiveForm(sessionId);
 });
 
 socket.on('form:submitted', ({ sessionId, formId, data }) => {
-  const live = state.liveForms.get(sessionId);
-  if (!live || live.formId !== formId) return;
+  const forms = state.liveForms.get(sessionId);
+  const live = forms && forms.find((f) => f.formId === formId);
+  if (!live) return;
   live.status = 'submitted';
   live.values = { ...live.values, ...data };
   if (state.selectedSessionId === sessionId) renderDetail();
 });
 
 socket.on('form:closed', ({ sessionId, formId }) => {
-  const live = state.liveForms.get(sessionId);
-  if (!live || live.formId !== formId) return;
+  const forms = state.liveForms.get(sessionId);
+  const live = forms && forms.find((f) => f.formId === formId);
+  if (!live) return;
   live.status = 'closed';
   if (state.selectedSessionId === sessionId) renderDetail();
 });

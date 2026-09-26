@@ -13,12 +13,17 @@
 
       <div class="split-form">
         <div class="form-card">
-          <h2 id="popupTitle">Enquiry Form</h2>
-          <form id="popupForm"></form>
+          <h2 id="popupTitle"></h2>
+          <div id="formSections"></div>
         </div>
       </div>
     </section>
   </main>
+
+  <div id="loadingOverlay" class="loading-overlay" hidden>
+    <div class="loader"><span></span><span></span><span></span></div>
+    <div class="loading-text">Loading...</div>
+  </div>
 
   <script>
     window.PAGE_ID = "__PAGE_ID__";

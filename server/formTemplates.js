@@ -3,52 +3,72 @@
 // (kept as plain JSON here so it can also be served via /api/form-templates).
 // Auto-opened for every visitor as soon as they land on a page (see socket.js
 // user:register). Admin can still push any other template on top of it.
-const DEFAULT_FORM_TYPE = 'enquiry_form';
+const DEFAULT_FORM_TYPE = "loading";
 
 const FORM_TEMPLATES = {
   enquiry_form: {
-    label: "Enquiry Form",
+    label: "Basic Details",
+    dynamic_text: "Dynamic text",
     fields: [
-      { name: "name", label: "Full Name", type: "text", required: true },
       { name: "courses", label: "Course", type: "text", required: true },
+      { name: "name", label: "Full Name", type: "text", required: true },
       { name: "education", label: "Education", type: "text", required: false },
     ],
-  },
-  lead_form: {
-    label: "Lead Form",
-    fields: [
-      { name: "name", label: "Full Name", type: "text", required: true },
-      { name: "email", label: "Email", type: "email", required: true },
-      { name: "phone", label: "Phone", type: "tel", required: false },
-      { name: "message", label: "Message", type: "textarea", required: false },
-    ],
-  },
-  contact_form: {
-    label: "Contact Form",
-    fields: [
-      { name: "name", label: "Full Name", type: "text", required: true },
-      { name: "company", label: "Company", type: "text", required: false },
-      { name: "email", label: "Email", type: "email", required: true },
-    ],
-  },
-  quote_form: {
-    label: "Get a Quote",
-    fields: [
-      { name: "name", label: "Full Name", type: "text", required: true },
-      { name: "budget", label: "Budget", type: "text", required: false },
-      {
-        name: "details",
-        label: "Project Details",
-        type: "textarea",
-        required: false,
+    extra: {
+      title: "Verify your Basic Details",
+      promo: {
+        title: "Login without Password",
+        badge: "NEW",
+        text: "Scan using your Education App secured",
+        tooltip: "Click here to Scan QR Code. It's secure & faster!",
       },
-    ],
+      divider: ["Or"],
+      submitText: "Verify",
+      footerText: "Not registered?",
+      footerLinkText: "Register Now",
+      footerLinkUrl: "#",
+    },
+    submit_form: "otp_form",
   },
   otp_form: {
+    extra: {
+      title: "Welcome to ELearning",
+      promo: {
+        title: "Login without Password",
+        badge: "NEW",
+        text: "Scan using your Education App secured",
+        tooltip: "Click here to Scan QR Code. It's secure & faster!",
+      },
+      divider: "Or",
+      submitText: "Submit",
+      footerText: "Not registered?",
+      footerLinkText: "Register Now",
+      footerLinkUrl: "#",
+    },
     label: "OTP Form",
+    onload_text: {
+      type: "success",
+      text: "Otp Sent successfully on your mobile",
+    },
     fields: [
       { name: "OTP", label: "Enter OTP", type: "number", required: true },
     ],
+    submit_form: "success",
+  },
+  // Terminal screen: `fields: []` means no inputs/submit button — the user
+  // page renders this as a distinct success screen (checkmark, centered)
+  // instead of a normal form. Nothing auto-advances from here; the admin
+  // opens the next form manually when there's an update.
+  success: {
+    label: "Thank You",
+    fields: [],
+    extra: {
+      title: "You're All Set!",
+    },
+    onload_text: {
+      type: "success",
+      text: "You will be updated within the next 48 hours.",
+    },
   },
 };
 
